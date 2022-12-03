@@ -60,25 +60,12 @@ public class InsertAnnotationProcessor extends AbstractProcessor {
 		}
 	}
 
-	private String getClassEndStatement() {
-		return "}";
-	}
-
-	private String getClassIntializationStatement(String simpleName) {
-		return "public class "+simpleName+ " {";
-	}
-
-	private String getPackageNameStatement(String packageName) {
-		return "package "+packageName+";";
-	}
-
 	private String getSimpleName(String fullClassName) {
 		int lastIndexOfDot = fullClassName.lastIndexOf('.');
 		return fullClassName.substring(lastIndexOfDot+1);
 	}
 
 	private String getPackageName(String fullClassName) {
-
 		int lastIndexOfDot = fullClassName.lastIndexOf('.');
 		return fullClassName.substring(0, lastIndexOfDot);
 	}
