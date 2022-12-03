@@ -29,11 +29,10 @@
       <version>0.12.1</version>
     </dependency>
 
-<!--    java poet for writing java source file-->
     <dependency>
-      <groupId>com.squareup</groupId>
-      <artifactId>javapoet</artifactId>
-      <version>1.13.0</version>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>5.4.0.Final</version>
     </dependency>
 
   </dependencies>

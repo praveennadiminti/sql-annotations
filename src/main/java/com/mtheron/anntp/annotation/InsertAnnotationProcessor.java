@@ -3,9 +3,8 @@ package com.mtheron.anntp.annotation;
 import com.mtheron.anntp.schema.InsertGenClassSchema;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.Set;
+import java.util.*;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -15,7 +14,8 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
+import javax.persistence.Column;
+import javax.persistence.Table;
 import javax.tools.Diagnostic.Kind;
 import javax.tools.JavaFileObject;
 
@@ -33,20 +33,42 @@ public class InsertAnnotationProcessor extends AbstractProcessor {
 			}
 			TypeElement typeElement = (TypeElement) annotatedElement;
 			String fullClassName = String.valueOf(typeElement.getQualifiedName());
-
-			printInsertClass(fullClassName);
+			String tableName = typeElement.getAnnotation(Table.class).name();
+			Map<String, String> columnNameFieldMap = getColumnFieldmapping(typeElement.getEnclosedElements());
+			printInsertClass(fullClassName, columnNameFieldMap, tableName);
 		}
 	    
 	    return false;
 	}
 
-	private void printInsertClass(String fullClassName) {
+	private Map<String, String> getColumnFieldmapping(List<? extends Element> enclosedElements) {
+		Map<String, String> columnFieldMapping = new HashMap<>();
+		for(Element enclosedElement: enclosedElements){
+			Column column = enclosedElement.getAnnotation(Column.class);
+			if(column != null){
+				columnFieldMapping.put(column.name(), enclosedElement.getSimpleName().toString());
+			}
+		}
+		return columnFieldMapping;
+	}
+
+	private void printInsertClass(String fullClassName, Map<String, String> columnNameFieldMap, String tableName) {
 		String packageName = getPackageName(fullClassName);
 		String simpleName = getSimpleName(fullClassName);
 		String inserterName = simpleName + "InsertGen";
 		String fullyQualifiedInserterName = packageName+"."+inserterName;
 
 		InsertGenClassSchema insertGenClassSchema = new InsertGenClassSchema(packageName, inserterName);
+		List<String> columns = new ArrayList<>();
+		List<String> fields = new ArrayList<>();
+		for(Map.Entry<String, String> entry: columnNameFieldMap.entrySet() ){
+			columns.add(entry.getKey());
+			fields.add(entry.getValue());
+		}
+		insertGenClassSchema.setColumns(columns);
+		insertGenClassSchema.setFields(fields);
+		insertGenClassSchema.setFullyQualifiedClassName(fullClassName);
+		insertGenClassSchema.setTableName(tableName);
 
 		try {
 			JavaFileObject outputFile = processingEnv.getFiler().createSourceFile(fullyQualifiedInserterName);
