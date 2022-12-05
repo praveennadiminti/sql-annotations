@@ -87,6 +87,8 @@ public class InsertGenClassSchema {
     public String getInsertGenClassFileString(){
         return getPackageDeclaration(packageName) +
                 "\n"+
+                addConvertToStringImportStatement() +
+                "\n"+
                 getClassDeclaration(className) +
                 codeBlock(generateInsertFunction());
     }
@@ -109,7 +111,8 @@ public class InsertGenClassSchema {
         StringBuilder stringBuilder = new StringBuilder();
         for (String field: fields) {
             stringBuilder.append("+ ");
-            stringBuilder.append("obj.get").append(capitalize(field)).append("() + \" ,\"");
+            stringBuilder.append("convertToString( ");
+            stringBuilder.append("obj.get").append(capitalize(field)).append("() ) + \" ,\"");
             stringBuilder.append("\n");
         }
         stringBuilder.deleteCharAt(stringBuilder.lastIndexOf(","));

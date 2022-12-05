@@ -28,4 +28,8 @@ public class StringWriterUtils {
             return name;
         }
     }
+
+    public static String addConvertToStringImportStatement() {
+        return "import static com.mtheron.anntp.utils.StringUtils.convertToString;";
+    }
 }
