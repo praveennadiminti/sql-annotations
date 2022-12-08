@@ -1,10 +1,12 @@
 package com.mtheron.anntp.schema;
 
+import com.mtheron.anntp.annotation.GetInsertStatement;
 import javax.persistence.Column;
 import javax.persistence.Table;
 
+@GetInsertStatement
 @Table(name = "testCase2table")
-public class TestClass2 {
+public class TestCase2 {
 
     @Column(name="column1name")
     private String column1;

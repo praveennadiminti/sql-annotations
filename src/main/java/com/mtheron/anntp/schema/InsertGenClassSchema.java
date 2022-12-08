@@ -1,13 +1,6 @@
 package com.mtheron.anntp.schema;
 
-import com.squareup.javapoet.*;
-
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
-import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static com.mtheron.anntp.schema.StringWriterUtils.*;
@@ -25,7 +18,7 @@ public class InsertGenClassSchema {
 
     private String tableName;
 
-    private String simpleClassName;
+    private String fullyQualifiedClassName;
 
     public String getPackageName() {
         return packageName;
@@ -76,11 +69,11 @@ public class InsertGenClassSchema {
     }
 
     public String getSimpleClassName() {
-        return simpleClassName;
+        return fullyQualifiedClassName;
     }
 
-    public void setSimpleClassName(String simpleClassName) {
-        this.simpleClassName = simpleClassName;
+    public void setFullyQualifiedClassName(String fullyQualifiedClassName) {
+        this.fullyQualifiedClassName = fullyQualifiedClassName;
     }
 
     public InsertGenClassSchema(String packageName, String className) {
@@ -93,13 +86,15 @@ public class InsertGenClassSchema {
 
     public String getInsertGenClassFileString(){
         return getPackageDeclaration(packageName) +
+                "\n"+
+                addConvertToStringImportStatement() +
+                "\n"+
                 getClassDeclaration(className) +
-                codeBlock("");
+                codeBlock(generateInsertFunction());
     }
 
     public String generateInsertFunction(){
-
-        return "public String generateInsertStatement ("+simpleClassName+" obj)\n" +
+        return "public String generateInsertStatement ("+fullyQualifiedClassName+" obj)\n" +
                 codeBlock(
                         returnString("Insert into "+tableName+" " +
                                 "("+
@@ -107,17 +102,17 @@ public class InsertGenClassSchema {
                                 ") " +
                                 "VALUES (\"\n" +
                                 getAllValues(fields)+
-                        "+\")")
+                        "+ \")")
                 );
-
     }
 
 
     private String getAllValues(List<String> fields) {
         StringBuilder stringBuilder = new StringBuilder();
         for (String field: fields) {
-            stringBuilder.append("+");
-            stringBuilder.append("obj.get").append(capitalize(field)).append("()+\" ,\"");
+            stringBuilder.append("+ ");
+            stringBuilder.append("convertToString( ");
+            stringBuilder.append("obj.get").append(capitalize(field)).append("() ) + \" ,\"");
             stringBuilder.append("\n");
         }
         stringBuilder.deleteCharAt(stringBuilder.lastIndexOf(","));
@@ -133,7 +128,6 @@ public class InsertGenClassSchema {
         }
         stringBuilder.deleteCharAt(stringBuilder.lastIndexOf(","));
         return stringBuilder.toString();
-
     }
 
 

@@ -52,7 +52,7 @@ public class IgnoreLineEndingsCustomMatcher implements GeneratedFileObjectMatche
 
             if (br1line != null && br2line != null && br1line != br2line) {
 
-                if (!br1line.equals(br2line)) {
+                if (!br1line.trim().equals(br2line.trim())) {
                     return false;
                 }
 
