@@ -1,0 +1,20 @@
+package ${packageName};
+
+import static com.mtheron.anntp.utils.StringUtils.convertToString;
+
+public class ${generatedClassName} {
+
+        public static String generateInsertStatement (${qualifiedNameOfBaseClass} obj) {
+            return "Insert into ${tableName} ( " +
+            #foreach($column in $columnListExcludingLast)
+                    "[ $column ]," +
+            #end
+                    "[ $lastColumn ] " +
+                    ") VALUES ("
+            #foreach($field in $fieldListExcludingLast)
+                    + convertToString( obj.get${field}() ) + " ,"
+            #end
+                    + convertToString( obj.get${lastField}() ) + " "
+                    + ")";
+        }
+}

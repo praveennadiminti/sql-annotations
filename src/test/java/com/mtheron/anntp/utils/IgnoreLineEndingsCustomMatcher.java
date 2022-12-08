@@ -3,8 +3,6 @@ package com.mtheron.anntp.utils;
 import io.toolisticon.cute.Constants;
 import io.toolisticon.cute.FailingAssertionException;
 import io.toolisticon.cute.GeneratedFileObjectMatcher;
-import io.toolisticon.cute.matchers.IgnoreLineEndingsGeneratedFileObjectMatcher;
-
 import javax.tools.FileObject;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,7 +36,7 @@ public class IgnoreLineEndingsCustomMatcher implements GeneratedFileObjectMatche
     }
 
 
-    static boolean contentEquals(InputStream input1, InputStream input2) throws IOException {
+    public static boolean contentEquals(InputStream input1, InputStream input2) throws IOException {
 
         BufferedReader br1 = new BufferedReader(new InputStreamReader(input1));
         BufferedReader br2 = new BufferedReader(new InputStreamReader(input2));
