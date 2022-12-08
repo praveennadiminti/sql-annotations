@@ -1,95 +1,89 @@
 package com.mtheron.anntp.annotation;
 
-import com.mtheron.anntp.schema.InsertGenClassSchema;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.*;
+import com.mtheron.anntp.schema.ClassSchema;
+import com.mtheron.anntp.schema.ClassSchemaImpl;
+import com.mtheron.anntp.writer.StringSchemaWriter;
+import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeKind;
-import javax.persistence.Column;
-import javax.persistence.Table;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 @SupportedAnnotationTypes("com.mtheron.anntp.annotation.GetInsertStatement")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class InsertAnnotationProcessor extends AbstractProcessor {
 
-	@Override
-	public boolean process(Set<? extends TypeElement> arg0, RoundEnvironment re) {
-	    processingEnv.getMessager().printMessage(Kind.NOTE, "Inside the processor, Hoorey");
-		Set<? extends Element> annotatedElements = re.getElementsAnnotatedWith(GetInsertStatement.class);
-		for (Element annotatedElement : annotatedElements) {
-			if (annotatedElement.asType().getKind() != TypeKind.DECLARED) {
-				processingEnv.getMessager().printMessage(Kind.ERROR, "Only classes needs to be annotated with GetInsertStatement");
-			}
-			TypeElement typeElement = (TypeElement) annotatedElement;
-			String fullClassName = String.valueOf(typeElement.getQualifiedName());
-			String tableName = typeElement.getAnnotation(Table.class).name();
-			Map<String, String> columnNameFieldMap = getColumnFieldmapping(typeElement.getEnclosedElements());
-			printInsertClass(fullClassName, columnNameFieldMap, tableName);
-		}
-	    
-	    return false;
-	}
+    @Override
+    public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
+        Function<RoundEnvironment, Stream<? extends TypeElement>> extractAllAnnotedClasses = this::extractAllAnnotedClasses;
+        Function<TypeElement, Pair<String,TypeElement>> getGeneratedClassString = this::getGeneratedClassString;
+        Consumer<Pair<String,TypeElement>> writeOutputToFile = this::writeOutputToFile;
 
-	private Map<String, String> getColumnFieldmapping(List<? extends Element> enclosedElements) {
-		Map<String, String> columnFieldMapping = new HashMap<>();
-		for(Element enclosedElement: enclosedElements){
-			Column column = enclosedElement.getAnnotation(Column.class);
-			if(column != null){
-				columnFieldMapping.put(column.name(), enclosedElement.getSimpleName().toString());
-			}
-		}
-		return columnFieldMapping;
-	}
+        Consumer<RoundEnvironment> pipeline = (re) -> extractAllAnnotedClasses.apply(re)
+                .map(getGeneratedClassString)
+                .forEach(writeOutputToFile);
 
-	private void printInsertClass(String fullClassName, Map<String, String> columnNameFieldMap, String tableName) {
-		String packageName = getPackageName(fullClassName);
-		String simpleName = getSimpleName(fullClassName);
-		String inserterName = simpleName + "InsertGen";
-		String fullyQualifiedInserterName = packageName+"."+inserterName;
+        pipeline.accept(roundEnvironment);
+        return false;
+    }
 
-		InsertGenClassSchema insertGenClassSchema = new InsertGenClassSchema(packageName, inserterName);
-		List<String> columns = new ArrayList<>();
-		List<String> fields = new ArrayList<>();
-		for(Map.Entry<String, String> entry: columnNameFieldMap.entrySet() ){
-			columns.add(entry.getKey());
-			fields.add(entry.getValue());
-		}
-		insertGenClassSchema.setColumns(columns);
-		insertGenClassSchema.setFields(fields);
-		insertGenClassSchema.setFullyQualifiedClassName(fullClassName);
-		insertGenClassSchema.setTableName(tableName);
+    private void writeOutputToFile(Pair<String,TypeElement> pair) {
+        TypeElement typeElement = pair.getRight();
+        String fileData = pair.getLeft();
+        String fullyQualifiedInserterName = getFullyQualifiedInserterName(typeElement);
+        try {
+            JavaFileObject outputFile = processingEnv.getFiler().createSourceFile(fullyQualifiedInserterName);
+            try(PrintWriter out = new PrintWriter(outputFile.openOutputStream())){
+                out.print(fileData);
+                out.flush();
+            }
 
-		try {
-			JavaFileObject outputFile = processingEnv.getFiler().createSourceFile(fullyQualifiedInserterName);
-			try(PrintWriter out = new PrintWriter(outputFile.openOutputStream())){
-				out.print(insertGenClassSchema.getInsertGenClassFileString());
-				out.flush();
-			}
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private String getFullyQualifiedInserterName(TypeElement typeElement) {
+        String packageName = getPackageName(typeElement.getQualifiedName().toString());
+        String simpleBaseName = typeElement.getSimpleName().toString();
+        String inserterSimpleName = simpleBaseName + "InsertGen";
+        return packageName + "."+inserterSimpleName;
+    }
 
-	private String getSimpleName(String fullClassName) {
-		int lastIndexOfDot = fullClassName.lastIndexOf('.');
-		return fullClassName.substring(lastIndexOfDot+1);
-	}
+    private String getPackageName(String fullClassName) {
+        int lastIndexOfComma = fullClassName.lastIndexOf('.');
+        return fullClassName.substring(0,lastIndexOfComma);
+    }
 
-	private String getPackageName(String fullClassName) {
-		int lastIndexOfDot = fullClassName.lastIndexOf('.');
-		return fullClassName.substring(0, lastIndexOfDot);
-	}
+    private Pair<String,TypeElement> getGeneratedClassString(TypeElement typeElement) {
+        Function<TypeElement, ClassSchema> generateSchema = this::generateSchema;
+        Function<ClassSchema, String> generateStringFromInsertGenSchema = StringSchemaWriter::write;
+        return Pair.of(generateSchema
+                .andThen(generateStringFromInsertGenSchema)
+                .apply(typeElement), typeElement);
+    }
 
+    private ClassSchema generateSchema(TypeElement typeElement) {
+        return new ClassSchemaImpl(typeElement);
+    }
+
+    private Stream<? extends TypeElement> extractAllAnnotedClasses(RoundEnvironment roundEnvironment) {
+        roundEnvironment.getElementsAnnotatedWith(GetInsertStatement.class).stream()
+                .filter(element -> !(element instanceof TypeElement))
+                .forEach(element -> processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Only classes and interfaces with Table and column annotations can be annotated with @GetInsertStatement"));
+        return roundEnvironment.getElementsAnnotatedWith(GetInsertStatement.class).stream()
+                .filter(element -> element instanceof TypeElement)
+                .map(element -> (TypeElement) element);
+    }
 }
